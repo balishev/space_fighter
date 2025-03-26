@@ -50,8 +50,8 @@
       position: absolute;
       bottom: 20px;
       left: 20px;
-      width: 100px;
-      height: 100px;
+      width: 150px;  /* увеличено с 100px */
+      height: 150px; /* увеличено с 100px */
       background: rgba(255, 255, 255, 0.2);
       border-radius: 50%;
       display: none; /* Показывается только на мобильных */
@@ -61,12 +61,12 @@
     /* "Thumb" джойстика – перемещается внутри контейнера */
     #joystickThumb {
       position: absolute;
-      width: 40px;
-      height: 40px;
+      width: 60px;  /* увеличено с 40px */
+      height: 60px; /* увеличено с 40px */
       background: rgba(255, 255, 255, 0.8);
       border-radius: 50%;
-      left: 30px;
-      top: 30px;
+      left: 45px;  /* центрирование: (150 - 60)/2 = 45 */
+      top: 45px;   /* центрирование */
       pointer-events: none;
     }
     /* Кнопки действий для мобильных */
@@ -80,7 +80,8 @@
     #actionControls button {
       display: block;
       margin-bottom: 10px;
-      padding: 10px;
+      padding: 15px 25px; /* увеличено */
+      font-size: 18px;    /* увеличен размер шрифта */
     }
   </style>
 </head>
