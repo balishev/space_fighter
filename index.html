@@ -54,6 +54,45 @@
       font-size: 14px;
       line-height: 1.5;
     }
+    /* Элементы управления для мобильных устройств */
+    #joystickContainer {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 100px;
+      height: 100px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      touch-action: none;
+      z-index: 5;
+    }
+    #joystick {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      top: 30px;
+      left: 30px;
+      touch-action: none;
+    }
+    #actionButtons {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 5;
+    }
+    #actionButtons button {
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background: #444;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -82,10 +121,21 @@
     </div>
     <div id="controlsInfo">
       <p><strong>Управление:</strong></p>
-      <p>W/Стрелки – перемещение вперёд/назад, A/D или Стрелки влево/вправо – поворот</p>
+      <p>W/Стрелки – перемещение, A/D или Стрелки влево/вправо – поворот</p>
       <p>Space – лазер, Enter – ракета, Shift – ускорение (3 сек), Esc – пауза</p>
+      <p>На мобильном: используйте виртуальный джойстик для движения и кнопки справа для выстрелов и ускорения.</p>
     </div>
     <button id="startButton">Начать игру</button>
+  </div>
+
+  <!-- Элементы для мобильного управления -->
+  <div id="joystickContainer">
+    <div id="joystick"></div>
+  </div>
+  <div id="actionButtons">
+    <button id="btnShoot">Shoot</button>
+    <button id="btnRocket">Rocket</button>
+    <button id="btnBoost">Boost</button>
   </div>
 
   <canvas id="gameCanvas"></canvas>
@@ -98,15 +148,13 @@
 
     // Дополнительный множитель для спавна
     const spawnMultiplier = 0.1;
-    // Глобальные переменные для настроек спавна (будут установлены из меню)
     let asteroidSpawnFrequency = 0.02;
     let smallEnemySpawnFrequency = 0.005;
     let mediumEnemySpawnFrequency = 0.005;
     let largeEnemySpawnFrequency = 0.005;
     const allyBaseFrequency = 0.001;
 
-    // Глобальные переменные паузы
-    let paused = false;
+    let paused = false; // глобальная переменная паузы
 
     // Обновление отображения значений ползунков
     function updateSliderDisplay(id, displayId) {
@@ -149,10 +197,12 @@
       return distance < (r1 + r2);
     }
 
+    // Обработка клавиш (для ПК)
     const keys = {};
     window.addEventListener('keydown', (e) => { keys[e.code] = true; });
     window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
+    // Класс игрока
     class Player {
       constructor() {
         this.x = canvas.width / 2;
@@ -224,7 +274,7 @@
         if (this.y > canvas.height - this.height / 2) this.y = canvas.height - this.height / 2;
         if (this.shootCooldown > 0) this.shootCooldown--;
         if (this.rocketShootCooldown > 0) this.rocketShootCooldown--;
-        // Ускорение при нажатии Shift
+        // Ускорение (буст) при нажатии Boost (или Shift, если клавиатура)
         if (!this.boostActive && (keys['ShiftLeft'] || keys['ShiftRight'])) {
           this.boostActive = true;
           this.boostTimeRemaining = this.boostDuration;
@@ -581,6 +631,7 @@
       }
     }
 
+    // Глобальные массивы игровых объектов
     const player = new Player();
     const asteroids = [];
     const bullets = [];
@@ -597,6 +648,70 @@
       asteroids.push(new Asteroid());
     }
 
+    // --- Мобильный джойстик ---
+    let joystickVector = { x: 0, y: 0 };
+    const joystickContainer = document.getElementById('joystickContainer');
+    const joystick = document.getElementById('joystick');
+    let joystickCenter = { x: 0, y: 0 };
+
+    function updateJoystickCenter() {
+      const rect = joystickContainer.getBoundingClientRect();
+      joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+    updateJoystickCenter();
+    window.addEventListener('resize', updateJoystickCenter);
+
+    joystickContainer.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      updateJoystickCenter();
+    });
+    joystickContainer.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      let dx = touch.clientX - joystickCenter.x;
+      let dy = touch.clientY - joystickCenter.y;
+      const maxDist = 40; // максимальное смещение
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > maxDist) {
+        dx *= maxDist / dist;
+        dy *= maxDist / dist;
+      }
+      joystick.style.transform = `translate(${dx}px, ${dy}px)`;
+      joystickVector = { x: dx, y: dy };
+    });
+    joystickContainer.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      joystick.style.transform = `translate(0px, 0px)`;
+      joystickVector = { x: 0, y: 0 };
+    });
+
+    // --- Кнопки для мобильных действий ---
+    document.getElementById('btnShoot').addEventListener('click', () => {
+      if (player.shootCooldown <= 0 && player.ammo > 0) {
+        const bulletX = player.x + Math.sin(player.angle) * (player.height / 2);
+        const bulletY = player.y - Math.cos(player.angle) * (player.height / 2);
+        bullets.push(new Bullet(bulletX, bulletY, player.angle, "yellow"));
+        player.shootCooldown = 15;
+        player.ammo--;
+      }
+    });
+    document.getElementById('btnRocket').addEventListener('click', () => {
+      if (player.rocketShootCooldown <= 0 && player.rocketAmmo > 0) {
+        const rocketX = player.x + Math.sin(player.angle) * (player.height / 2);
+        const rocketY = player.y - Math.cos(player.angle) * (player.height / 2);
+        rockets.push(new Rocket(rocketX, rocketY, player.angle));
+        player.rocketShootCooldown = 60;
+        player.rocketAmmo--;
+      }
+    });
+    document.getElementById('btnBoost').addEventListener('click', () => {
+      if (!player.boostActive) {
+        player.boostActive = true;
+        player.boostTimeRemaining = player.boostDuration;
+      }
+    });
+
+    // Обработка ввода (ПК)
     function handleInput() {
       if (keys['ArrowUp'] || keys['KeyW']) {
         player.x += player.speed * Math.sin(player.angle);
@@ -625,6 +740,22 @@
         rockets.push(new Rocket(rocketX, rocketY, player.angle));
         player.rocketShootCooldown = 60;
         player.rocketAmmo--;
+      }
+    }
+
+    // В мобильном режиме – использование джойстика для движения
+    function handleMobileControls() {
+      // Если джойстик сдвинут, вычисляем угол и величину
+      let dx = joystickVector.x;
+      let dy = joystickVector.y;
+      let mag = Math.sqrt(dx * dx + dy * dy);
+      if (mag > 10) {
+        let angle = Math.atan2(dx, -dy);
+        player.angle = angle;
+        // Двигаем игрока пропорционально смещению
+        let factor = mag / 40;
+        player.x += factor * player.speed * Math.sin(player.angle);
+        player.y -= factor * player.speed * Math.cos(player.angle);
       }
     }
 
@@ -657,10 +788,8 @@
 
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Если игра поставлена на паузу, выводим надпись и не обновляем состояние
       if (paused) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "white";
         ctx.font = "48px sans-serif";
@@ -668,8 +797,9 @@
         requestAnimationFrame(gameLoop);
         return;
       }
-      
+      // Обработка ввода с ПК и мобильных устройств
       handleInput();
+      handleMobileControls();
       player.update();
       player.draw();
       drawHealthBar();
