@@ -2,132 +2,132 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Космический стрелялка-эксплорер</title>
+  <title>Игра: Настройки и управление</title>
   <style>
     body {
       margin: 0;
       padding: 0;
+      background-color: #000;
       overflow: hidden;
-      background: black;
-      font-family: sans-serif;
     }
-    canvas {
+    /* Холст для игры */
+    #gameCanvas {
       display: block;
-      background: #000;
+      background-color: #000;
     }
     /* Меню настроек */
     #settingsMenu {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      color: white;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 10;
-    }
-    #settingsMenu .sliderContainer {
-      margin: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 20px;
+      border: 1px solid #000;
+      z-index: 1000;
     }
     #settingsMenu label {
-      width: 180px;
+      display: block;
+      margin-bottom: 10px;
     }
-    #settingsMenu input[type="range"] {
-      width: 200px;
+    #settingsMenu span {
+      margin-left: 10px;
     }
-    #settingsMenu button {
-      margin-top: 20px;
+    #startButton {
+      margin-top: 10px;
       padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
     }
-    /* Виртуальные органы управления для мобильных устройств */
-    #mobileControls {
+    /* Кнопка для открытия настроек (после старта) */
+    #settingsButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1001;
+      display: none;
+    }
+    /* Виртуальный джойстик */
+    #joystickContainer {
       position: absolute;
       bottom: 20px;
       left: 20px;
-      z-index: 20;
-      display: none; /* показываем только на мобильных устройствах */
-      user-select: none;
+      width: 100px;
+      height: 100px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: none; /* Показывается только на мобильных */
+      z-index: 1000;
+      touch-action: none;
     }
-    #mobileControls button {
-      background: rgba(255, 255, 255, 0.3);
-      border: 2px solid white;
-      border-radius: 10px;
-      font-size: 24px;
-      padding: 20px;
-      margin: 5px;
+    /* "Thumb" джойстика – перемещается внутри контейнера */
+    #joystickThumb {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      left: 30px;
+      top: 30px;
+      pointer-events: none;
     }
-    /* Кнопки действий (в правом нижнем углу) */
+    /* Кнопки действий для мобильных */
     #actionControls {
       position: absolute;
       bottom: 20px;
       right: 20px;
-      z-index: 20;
-      display: none;
-      user-select: none;
+      display: none; /* Показывается только на мобильных */
+      z-index: 1000;
     }
     #actionControls button {
-      background: rgba(255, 255, 255, 0.3);
-      border: 2px solid white;
-      border-radius: 10px;
-      font-size: 24px;
-      padding: 20px;
-      margin: 5px;
+      display: block;
+      margin-bottom: 10px;
+      padding: 10px;
     }
   </style>
 </head>
 <body>
   <!-- Меню настроек -->
   <div id="settingsMenu">
-    <h2>Настройки спавна</h2>
-    <div class="sliderContainer">
-      <label for="asteroidFrequency">Астероиды:</label>
-      <input type="range" id="asteroidFrequency" min="0" max="0.05" step="0.001" value="0.02">
-      <span id="asteroidFreqVal">0.020</span>
-    </div>
-    <div class="sliderContainer">
-      <label for="smallEnemyFrequency">Маленькие враги:</label>
+    <label>
+      Частота спавна астероидов:
+      <input type="range" id="asteroidFrequency" min="0" max="0.1" step="0.001" value="0.02">
+      <span id="asteroidFreqVal">0.02</span>
+    </label>
+    <label>
+      Частота спавна маленьких врагов:
       <input type="range" id="smallEnemyFrequency" min="0" max="0.05" step="0.001" value="0.005">
       <span id="smallEnemyFreqVal">0.005</span>
-    </div>
-    <div class="sliderContainer">
-      <label for="mediumEnemyFrequency">Средние враги:</label>
+    </label>
+    <label>
+      Частота спавна средних врагов:
       <input type="range" id="mediumEnemyFrequency" min="0" max="0.05" step="0.001" value="0.005">
       <span id="mediumEnemyFreqVal">0.005</span>
-    </div>
-    <div class="sliderContainer">
-      <label for="largeEnemyFrequency">Большие враги:</label>
+    </label>
+    <label>
+      Частота спавна больших врагов:
       <input type="range" id="largeEnemyFrequency" min="0" max="0.05" step="0.001" value="0.005">
       <span id="largeEnemyFreqVal">0.005</span>
-    </div>
+    </label>
     <button id="startButton">Начать игру</button>
   </div>
 
-  <!-- Элементы для управления на мобильных устройствах -->
-  <div id="mobileControls">
-    <div id="dpad">
-      <button id="btnUp">↑</button><br>
-      <button id="btnLeft">←</button>
-      <button id="btnDown">↓</button>
-      <button id="btnRight">→</button>
-    </div>
+  <!-- Кнопка для повторного открытия настроек -->
+  <button id="settingsButton">Настройки</button>
+
+  <!-- Игровой холст -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Виртуальный джойстик для мобильных -->
+  <div id="joystickContainer">
+    <div id="joystickThumb"></div>
   </div>
+
+  <!-- Кнопки действий для мобильных -->
   <div id="actionControls">
-    <button id="btnShoot">Лазер</button>
+    <button id="btnLaser">Лазер</button>
     <button id="btnRocket">Ракета</button>
     <button id="btnBoost">Буст</button>
   </div>
 
-  <canvas id="gameCanvas"></canvas>
-  <!-- Подключаем внешний скрипт -->
   <script src="script.js"></script>
 </body>
 </html>
