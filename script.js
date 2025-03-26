@@ -1,23 +1,85 @@
-// Настройка canvas
+"use strict";
+
+// Инициализация canvas и его контекста
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// Дополнительный множитель для спавна (чтобы маленькие значения имели заметный эффект)
-const spawnMultiplier = 0.1;
+// Глобальные переменные для спавна объектов
+let spawnMultiplier = 0.1;
 let asteroidSpawnFrequency = 0.02;
 let smallEnemySpawnFrequency = 0.005;
 let mediumEnemySpawnFrequency = 0.005;
 let largeEnemySpawnFrequency = 0.005;
-const allyBaseFrequency = 0.001;
 
-// Обновление отображения значений ползунков
-function updateSliderDisplay(id, displayId) {
-  const slider = document.getElementById(id);
-  const display = document.getElementById(displayId);
-  slider.addEventListener('input', () => {
-    display.textContent = parseFloat(slider.value).toFixed(3);
+// Определяем, мобильное ли устройство
+let isMobile = /Mobi|Android/i.test(navigator.userAgent);
+const joystickContainer = document.getElementById('joystickContainer');
+const joystickThumb = document.getElementById('joystickThumb');
+if (isMobile) {
+  joystickContainer.style.display = 'block';
+  document.getElementById('actionControls').style.display = 'block';
+}
+
+// Переменные для джойстика
+let joystickActive = false;
+let joystickTouchId = null;
+let joystickVector = { x: 0, y: 0 };
+
+// Обработчики для виртуального джойстика
+joystickContainer.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  let touch = e.changedTouches[0];
+  joystickActive = true;
+  joystickTouchId = touch.identifier;
+});
+joystickContainer.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  let touch = Array.from(e.changedTouches).find(t => t.identifier === joystickTouchId);
+  if (touch) {
+    const rect = joystickContainer.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    let dx = touch.clientX - centerX;
+    let dy = touch.clientY - centerY;
+    const maxDistance = rect.width / 2;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > maxDistance) {
+      dx = (dx / distance) * maxDistance;
+      dy = (dy / distance) * maxDistance;
+    }
+    joystickVector.x = dx / maxDistance;
+    joystickVector.y = dy / maxDistance;
+    // Обновляем положение "thumb"
+    joystickThumb.style.left = (dx + rect.width / 2 - joystickThumb.offsetWidth / 2) + "px";
+    joystickThumb.style.top = (dy + rect.height / 2 - joystickThumb.offsetHeight / 2) + "px";
+  }
+});
+joystickContainer.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  let touch = Array.from(e.changedTouches).find(t => t.identifier === joystickTouchId);
+  if (touch) {
+    joystickActive = false;
+    joystickVector.x = 0;
+    joystickVector.y = 0;
+    // Сброс позиции thumb в центр
+    joystickThumb.style.left = (joystickContainer.offsetWidth / 2 - joystickThumb.offsetWidth / 2) + "px";
+    joystickThumb.style.top = (joystickContainer.offsetHeight / 2 - joystickThumb.offsetHeight / 2) + "px";
+  }
+});
+
+// Обработка клавиатуры для ПК
+const keys = {};
+window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+// Обновление отображения значений диапазонов (input type="range")
+function updateSliderDisplay(inputId, spanId) {
+  const input = document.getElementById(inputId);
+  const span = document.getElementById(spanId);
+  input.addEventListener('input', () => {
+    span.textContent = input.value;
   });
 }
 updateSliderDisplay('asteroidFrequency', 'asteroidFreqVal');
@@ -25,55 +87,22 @@ updateSliderDisplay('smallEnemyFrequency', 'smallEnemyFreqVal');
 updateSliderDisplay('mediumEnemyFrequency', 'mediumEnemyFreqVal');
 updateSliderDisplay('largeEnemyFrequency', 'largeEnemyFreqVal');
 
-// Запуск игры после нажатия кнопки "Начать игру"
-document.getElementById('startButton').addEventListener('click', () => {
-  asteroidSpawnFrequency = parseFloat(document.getElementById('asteroidFrequency').value);
-  smallEnemySpawnFrequency = parseFloat(document.getElementById('smallEnemyFrequency').value);
-  mediumEnemySpawnFrequency = parseFloat(document.getElementById('mediumEnemyFrequency').value);
-  largeEnemySpawnFrequency = parseFloat(document.getElementById('largeEnemyFrequency').value);
-  document.getElementById('settingsMenu').style.display = 'none';
-  gameLoop();
+// Обработка кнопок действий для мобильных
+document.getElementById('btnLaser').addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  fireLaser();
+});
+document.getElementById('btnRocket').addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  fireRocket();
+});
+document.getElementById('btnBoost').addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  activateBoost();
 });
 
-// Отображать органы управления только на мобильных устройствах
-if (/Mobi|Android/i.test(navigator.userAgent)) {
-  document.getElementById('mobileControls').style.display = 'block';
-  document.getElementById('actionControls').style.display = 'block';
-}
-
-// Вспомогательная функция для случайных чисел
-function getRandom(min, max) {
-  return Math.random() * (max - min) + min;
-}
-
-// Функция проверки столкновений (окружностей)
-function checkCollision(x1, y1, r1, x2, y2, r2) {
-  const dx = x1 - x2;
-  const dy = y1 - y2;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-  return distance < (r1 + r2);
-}
-
-// Отслеживание нажатых клавиш (для клавиатурного управления)
-const keys = {};
-window.addEventListener('keydown', (e) => { keys[e.code] = true; });
-window.addEventListener('keyup', (e) => { keys[e.code] = false; });
-
-// Обработка нажатий на мобильные кнопки
-function addMobileControl(buttonId, keyName) {
-  const btn = document.getElementById(buttonId);
-  btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
-  btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
-  btn.addEventListener('mousedown', () => { keys[keyName] = true; });
-  btn.addEventListener('mouseup', () => { keys[keyName] = false; });
-}
-addMobileControl("btnUp", "ArrowUp");
-addMobileControl("btnDown", "ArrowDown");
-addMobileControl("btnLeft", "ArrowLeft");
-addMobileControl("btnRight", "ArrowRight");
-
-document.getElementById("btnShoot").addEventListener("touchstart", (e) => {
-  e.preventDefault();
+// Функции для мобильных действий
+function fireLaser() {
   if (player.shootCooldown <= 0 && player.ammo > 0) {
     const bulletX = player.x + Math.sin(player.angle) * (player.height / 2);
     const bulletY = player.y - Math.cos(player.angle) * (player.height / 2);
@@ -81,9 +110,8 @@ document.getElementById("btnShoot").addEventListener("touchstart", (e) => {
     player.shootCooldown = 15;
     player.ammo--;
   }
-});
-document.getElementById("btnRocket").addEventListener("touchstart", (e) => {
-  e.preventDefault();
+}
+function fireRocket() {
   if (player.rocketShootCooldown <= 0 && player.rocketAmmo > 0) {
     const rocketX = player.x + Math.sin(player.angle) * (player.height / 2);
     const rocketY = player.y - Math.cos(player.angle) * (player.height / 2);
@@ -91,15 +119,13 @@ document.getElementById("btnRocket").addEventListener("touchstart", (e) => {
     player.rocketShootCooldown = 60;
     player.rocketAmmo--;
   }
-});
-document.getElementById("btnBoost").addEventListener("touchstart", (e) => {
-  e.preventDefault();
+}
+function activateBoost() {
   player.speed *= 2;
   setTimeout(() => { player.speed /= 2; }, 3000);
-});
+}
 
-// --- Классы игровых объектов ---
-
+// Классы игровых объектов
 class Player {
   constructor() {
     this.x = canvas.width / 2;
@@ -127,8 +153,9 @@ class Player {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    if (keys['ArrowUp'] || keys['KeyW']) {
-      let flameLength = getRandom(10, 20);
+    // Отрисовка двигателя (если активны клавиши или джойстик)
+    if ((keys['ArrowUp'] || keys['KeyW']) || joystickActive) {
+      let flameLength = 10 + Math.random() * 10;
       ctx.beginPath();
       ctx.moveTo(-this.width / 4, this.height / 2);
       ctx.lineTo(0, this.height / 2 + flameLength);
@@ -139,6 +166,7 @@ class Player {
       ctx.fillStyle = grad;
       ctx.fill();
     }
+    // Форма корабля
     ctx.beginPath();
     ctx.moveTo(0, -this.height / 2);
     ctx.lineTo(-this.width / 2, this.height / 2);
@@ -146,14 +174,15 @@ class Player {
     ctx.closePath();
     ctx.fillStyle = "white";
     ctx.fill();
+    // Щит
     if (this.shield > 0) {
       ctx.beginPath();
       const shieldRadius = Math.max(this.width, this.height) * 1.2;
       ctx.arc(0, 0, shieldRadius, 0, 2 * Math.PI);
-      const shieldGradient = ctx.createRadialGradient(0, 0, shieldRadius * 0.5, 0, 0, shieldRadius);
-      shieldGradient.addColorStop(0, "rgba(0,150,255,0.3)");
-      shieldGradient.addColorStop(1, "rgba(0,150,255,0)");
-      ctx.fillStyle = shieldGradient;
+      const shieldGrad = ctx.createRadialGradient(0, 0, shieldRadius * 0.5, 0, 0, shieldRadius);
+      shieldGrad.addColorStop(0, "rgba(0,150,255,0.3)");
+      shieldGrad.addColorStop(1, "rgba(0,150,255,0)");
+      ctx.fillStyle = shieldGrad;
       ctx.fill();
     }
     ctx.restore();
@@ -254,7 +283,7 @@ class Rocket {
     this.x += this.speed * Math.sin(this.angle);
     this.y -= this.speed * Math.cos(this.angle);
     this.age++;
-    // Самонаведение: корректируем угол в сторону ближайшего врага
+    // Самонаведение – корректировка угла к ближайшему врагу
     let closest = null;
     let closestDist = Infinity;
     for (let enemy of enemies) {
@@ -267,10 +296,8 @@ class Rocket {
       }
     }
     if (closest) {
-      // Корректируем угол (плавно)
       let targetAngle = Math.atan2(closest.x - this.x, -(closest.y - this.y));
-      // Немного изменяем текущий угол в сторону targetAngle
-      this.angle = this.angle + 0.1 * (targetAngle - this.angle);
+      this.angle += 0.1 * (targetAngle - this.angle);
     }
   }
   draw() {
@@ -313,6 +340,7 @@ class Enemy {
       this.shootCooldown = 120;
       this.bulletDamage = 20;
     }
+    // Спавн с краёв холста
     const edge = Math.floor(Math.random() * 4);
     if (edge === 0) {
       this.x = getRandom(0, canvas.width);
@@ -383,6 +411,7 @@ class Enemy {
       ctx.closePath();
       ctx.fillStyle = "red";
       ctx.fill();
+      // Отрисовка щита для больших врагов
       ctx.beginPath();
       let shieldRadius = Math.max(this.width, this.height) * 1.5;
       ctx.arc(0, 0, shieldRadius, 0, 2 * Math.PI);
@@ -472,6 +501,18 @@ class Explosion {
   }
 }
 
+// Вспомогательные функции
+function getRandom(min, max) {
+  return Math.random() * (max - min) + min;
+}
+function checkCollision(x1, y1, r1, x2, y2, r2) {
+  const dx = x1 - x2;
+  const dy = y1 - y2;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  return distance < (r1 + r2);
+}
+
+// Функция взрыва ракеты
 function rocketExplosion(rocket) {
   explosions.push(new Explosion(rocket.x, rocket.y, rocket.explosionRadius));
   for (let i = asteroids.length - 1; i >= 0; i--) {
@@ -520,19 +561,23 @@ const allyBullets = [];
 let gameOver = false;
 
 // Начальная генерация астероидов
-const numAsteroids = 5;
-for (let i = 0; i < numAsteroids; i++) {
+for (let i = 0; i < 5; i++) {
   asteroids.push(new Asteroid());
 }
 
+// Обработка ввода для ПК
 function handleInput() {
+  let currentSpeed = player.speed;
+  if (keys['ShiftLeft'] || keys['ShiftRight']) {
+    currentSpeed *= 2;
+  }
   if (keys['ArrowUp'] || keys['KeyW']) {
-    player.x += player.speed * Math.sin(player.angle);
-    player.y -= player.speed * Math.cos(player.angle);
+    player.x += currentSpeed * Math.sin(player.angle);
+    player.y -= currentSpeed * Math.cos(player.angle);
   }
   if (keys['ArrowDown'] || keys['KeyS']) {
-    player.x -= player.speed * Math.sin(player.angle);
-    player.y += player.speed * Math.cos(player.angle);
+    player.x -= currentSpeed * Math.sin(player.angle);
+    player.y += currentSpeed * Math.cos(player.angle);
   }
   if (keys['ArrowLeft'] || keys['KeyA']) {
     player.angle -= 0.1;
@@ -556,6 +601,7 @@ function handleInput() {
   }
 }
 
+// Отрисовка интерфейса (здоровье, щит, боеприпасы)
 function drawHealthBar() {
   const barWidth = 200, barHeight = 20, x = 20, y = 20;
   ctx.fillStyle = "red";
@@ -583,6 +629,7 @@ function drawAmmo() {
   ctx.fillText("Rockets: " + player.rocketAmmo + "/" + player.maxRocketAmmo, 20, 120);
 }
 
+// Главный игровой цикл
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (gameOver) {
@@ -591,13 +638,23 @@ function gameLoop() {
     ctx.fillText("Game Over", canvas.width / 2 - 100, canvas.height / 2);
     return;
   }
-  handleInput();
+  
+  // Если мобильное устройство и активен джойстик – используем его
+  if (isMobile && joystickActive) {
+    const moveAngle = Math.atan2(joystickVector.x, -joystickVector.y);
+    player.angle = moveAngle;
+    player.x += joystickVector.x * player.speed;
+    player.y += joystickVector.y * player.speed;
+  } else {
+    handleInput();
+  }
+  
   player.update();
   player.draw();
   drawHealthBar();
   drawShieldBar();
   drawAmmo();
-
+  
   // Обновление астероидов
   for (let i = asteroids.length - 1; i >= 0; i--) {
     let asteroid = asteroids[i];
@@ -621,8 +678,8 @@ function gameLoop() {
       if (player.hp <= 0) gameOver = true;
     }
   }
-
-  // Обновление лазерных пуль игрока
+  
+  // Обновление пуль игрока
   for (let i = bullets.length - 1; i >= 0; i--) {
     let bullet = bullets[i];
     bullet.update();
@@ -640,7 +697,7 @@ function gameLoop() {
       }
     }
   }
-
+  
   // Обновление ракет игрока
   for (let i = rockets.length - 1; i >= 0; i--) {
     let rocket = rockets[i];
@@ -677,7 +734,7 @@ function gameLoop() {
       continue;
     }
   }
-
+  
   // Обновление врагов
   for (let i = enemies.length - 1; i >= 0; i--) {
     let enemy = enemies[i];
@@ -744,8 +801,8 @@ function gameLoop() {
       }
     }
   }
-
-  // Обновление пуль врагов (также наносят урон астероидам)
+  
+  // Обновление пуль врагов
   for (let i = enemyBullets.length - 1; i >= 0; i--) {
     let eBullet = enemyBullets[i];
     eBullet.update();
@@ -776,7 +833,7 @@ function gameLoop() {
       if (player.hp <= 0) gameOver = true;
     }
   }
-
+  
   // Обновление пуль баз союзников
   for (let i = allyBullets.length - 1; i >= 0; i--) {
     let aBullet = allyBullets[i];
@@ -808,7 +865,7 @@ function gameLoop() {
       }
     }
   }
-
+  
   // Обновление баз союзников
   for (let i = allyBases.length - 1; i >= 0; i--) {
     let base = allyBases[i];
@@ -824,7 +881,7 @@ function gameLoop() {
       allyBases.splice(i, 1);
     }
   }
-
+  
   // Обновление эффектов взрывов
   for (let i = explosions.length - 1; i >= 0; i--) {
     let explosion = explosions[i];
@@ -834,8 +891,8 @@ function gameLoop() {
       explosions.splice(i, 1);
     }
   }
-
-  // Спавн новых объектов с учетом множителя
+  
+  // Спавн новых объектов с учетом настроек
   if (Math.random() < asteroidSpawnFrequency * spawnMultiplier) {
     asteroids.push(new Asteroid());
   }
@@ -848,9 +905,25 @@ function gameLoop() {
   if (Math.random() < largeEnemySpawnFrequency * spawnMultiplier) {
     enemies.push(new Enemy("large"));
   }
-  if (Math.random() < allyBaseFrequency * spawnMultiplier) {
-    allyBases.push(new AllyBase());
-  }
-
+  
   requestAnimationFrame(gameLoop);
 }
+
+// Обработчик нажатия кнопки "Начать игру"
+document.getElementById('startButton').addEventListener('click', () => {
+  // Считываем значения из элементов input range
+  asteroidSpawnFrequency = parseFloat(document.getElementById('asteroidFrequency').value);
+  smallEnemySpawnFrequency = parseFloat(document.getElementById('smallEnemyFrequency').value);
+  mediumEnemySpawnFrequency = parseFloat(document.getElementById('mediumEnemyFrequency').value);
+  largeEnemySpawnFrequency = parseFloat(document.getElementById('largeEnemyFrequency').value);
+  // Скрываем меню настроек
+  document.getElementById('settingsMenu').style.display = 'none';
+  // Показываем кнопку настроек для повторного открытия
+  document.getElementById('settingsButton').style.display = 'block';
+  gameLoop();
+});
+
+// Обработчик кнопки настроек (для повторного открытия меню)
+document.getElementById('settingsButton').addEventListener('click', () => {
+  document.getElementById('settingsMenu').style.display = 'block';
+});
