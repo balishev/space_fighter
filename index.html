@@ -4,18 +4,19 @@
   <meta charset="UTF-8">
   <title>Игра: Настройки и управление</title>
   <style>
+    /* Стили для страницы игры */
     body {
       margin: 0;
       padding: 0;
-      background-color: #000;
-      overflow: hidden;
+      background-color: #000;  /* Фон страницы – черный */
+      overflow: hidden;        /* Отключаем прокрутку */
     }
-    /* Холст для игры */
+    /* Стиль для игрового холста, на котором отрисовываются все объекты */
     #gameCanvas {
       display: block;
       background-color: #000;
     }
-    /* Меню настроек */
+    /* Стили для меню настроек, которое позволяет установить частоты спавна объектов */
     #settingsMenu {
       position: absolute;
       top: 50%;
@@ -24,7 +25,7 @@
       background: #fff;
       padding: 20px;
       border: 1px solid #000;
-      z-index: 1000;
+      z-index: 1000; /* Меню располагается поверх остальных элементов */
     }
     #settingsMenu label {
       display: block;
@@ -37,56 +38,56 @@
       margin-top: 10px;
       padding: 10px 20px;
     }
-    /* Кнопка для открытия настроек (после старта) */
+    /* Кнопка для повторного открытия меню настроек (после начала игры) */
     #settingsButton {
       position: absolute;
       top: 10px;
       right: 10px;
       z-index: 1001;
-      display: none;
+      display: none; /* Показывается только после старта игры */
     }
-    /* Виртуальный джойстик */
+    /* Виртуальный джойстик для мобильных устройств */
     #joystickContainer {
       position: absolute;
       bottom: 20px;
       left: 20px;
-      width: 200px;  /* увеличено с 100px */
-      height: 200px; /* увеличено с 100px */
+      width: 200px;  /* Увеличенные размеры для удобства управления */
+      height: 200px;
       background: rgba(255, 255, 255, 0.2);
       border-radius: 50%;
-      display: none; /* Показывается только на мобильных */
+      display: none; /* Отображается только на мобильных */
       z-index: 1000;
       touch-action: none;
     }
-    /* "Thumb" джойстика – перемещается внутри контейнера */
+    /* "Thumb" – подвижный элемент джойстика */
     #joystickThumb {
       position: absolute;
-      width: 100px;  
-      height: 100px; 
+      width: 100px;  /* Увеличенный размер для лучшей видимости */
+      height: 100px;
       background: rgba(255, 255, 255, 0.8);
       border-radius: 50%;
-      left: 25px;  /* центрирование: (150 - 60)/2 = 45 */
-      top: 25px;   /* центрирование */
+      left: 25px;  /* Центрирование внутри контейнера */
+      top: 25px;
       pointer-events: none;
     }
-    /* Кнопки действий для мобильных */
+    /* Кнопки действий для мобильных устройств (лазер, ракета, буст) */
     #actionControls {
       position: absolute;
       bottom: 20px;
       right: 20px;
-      display: none; /* Показывается только на мобильных */
+      display: none; /* Отображаются только на мобильных */
       z-index: 1000;
     }
     #actionControls button {
       display: block;
       margin-bottom: 10px;
-      padding: 30px 70px; /* увеличено */
-      font-size: 35px;    /* увеличен размер шрифта */
+      padding: 30px 70px; /* Увеличенные отступы для удобного нажатия */
+      font-size: 35px;    /* Крупный шрифт для лучшей читаемости */
     }
   </style>
 </head>
 <body>
-  <!-- Меню настроек -->
+  <!-- Меню настроек: здесь пользователь выбирает частоты спавна объектов -->
   <div id="settingsMenu">
     <label>
       Частота спавна астероидов:
@@ -111,18 +112,18 @@
     <button id="startButton">Начать игру</button>
   </div>
 
-  <!-- Кнопка для повторного открытия настроек -->
+  <!-- Кнопка для повторного открытия настроек во время игры -->
   <button id="settingsButton">Настройки</button>
 
-  <!-- Игровой холст -->
+  <!-- Игровой холст, на котором отрисовываются все элементы игры -->
   <canvas id="gameCanvas"></canvas>
 
-  <!-- Виртуальный джойстик для мобильных -->
+  <!-- Виртуальный джойстик (отображается только на мобильных устройствах) -->
   <div id="joystickContainer">
     <div id="joystickThumb"></div>
   </div>
 
-  <!-- Кнопки действий для мобильных -->
+  <!-- Кнопки действий для мобильных: лазер, ракета и буст -->
   <div id="actionControls">
     <button id="btnLaser">Лазер</button>
     <button id="btnRocket">Ракета</button>
