@@ -375,31 +375,25 @@ class Player {
       ctx.fill();
       ctx.restore();
     }
-    //  isOffScreen – проверяет, вышла ли пуля за пределы экрана
     isOffScreen() {
       return (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height);
     }
   }
   
-  //  rocket – представляет ракету с самонаведением
   class Rocket {
     constructor(x, y, angle) {
       // начальные координаты ракеты
       this.x = x;
       this.y = y;
-      // начальный угол движения ракеты
-      this.angle = angle;
-      // скорость ракеты
-      this.speed = 8;
-      // радиус ракеты (для столкновений)
+      
+      this.angle = angle; // начальный угол движения ракеты
+      
+      this.speed = 8; // скорость ракеты
+      
       this.radius = 7;
-      // время жизни ракеты (в кадрах), после которого она взрывается
       this.lifetime = 120;
-      // счетчик, показывающий, сколько кадров прошло с запуска
       this.age = 0;
-      // радиус взрыва ракеты
       this.explosionRadius = 50;
-      // урон, наносимый взрывом ракеты
       this.explosionDamage = 50;
     }
     //  update – обновляет положение ракеты и выполняет самонаведение
